@@ -45,6 +45,7 @@ RUN echo "#!/bin/sh\nexit 0" > /usr/sbin/policy-rc.d && \
         redis-server \
         software-properties-common \
         sudo \
+        dpkg \
         supervisor \
         ttf-mscorefonts-installer \
         xvfb \
@@ -58,34 +59,32 @@ RUN echo "#!/bin/sh\nexit 0" > /usr/sbin/policy-rc.d && \
     service postgresql restart && \
     sudo -u postgres psql -c "CREATE DATABASE $ONLYOFFICE_VALUE;" && \
     sudo -u postgres psql -c "CREATE USER $ONLYOFFICE_VALUE WITH password '$ONLYOFFICE_VALUE';" && \
-    sudo -u postgres psql -c "GRANT ALL privileges ON DATABASE $ONLYOFFICE_VALUE TO $ONLYOFFICE_VALUE;" && \ 
+    sudo -u postgres psql -c "GRANT ALL privileges ON DATABASE $ONLYOFFICE_VALUE TO $ONLYOFFICE_VALUE;" && \
     service postgresql stop && \
     service redis-server stop && \
     service rabbitmq-server stop && \
     service supervisor stop && \
-    service nginx stop && \
-    rm -rf /var/lib/apt/lists/*
+    service nginx stop
 
 COPY config /app/ds/setup/config/
 COPY run-document-server.sh /app/ds/run-document-server.sh
+ADD  deb /root/deb
 
 EXPOSE 80 443
 
 ARG COMPANY_NAME=onlyoffice
 ARG PRODUCT_NAME=documentserver
-ARG PACKAGE_URL="http://download.onlyoffice.com/install/documentserver/linux/${COMPANY_NAME}-${PRODUCT_NAME}_amd64.deb"
+ARG PACKAGE_PATH="/root/deb/${COMPANY_NAME}-${PRODUCT_NAME}_amd64.deb"
 
 ENV COMPANY_NAME=$COMPANY_NAME \
     PRODUCT_NAME=$PRODUCT_NAME
 
-RUN wget -q -P /tmp "$PACKAGE_URL" && \
-    apt-get -y update && \
-    service postgresql start && \
-    apt-get -yq install /tmp/$(basename "$PACKAGE_URL") && \
-    service postgresql stop && \
+RUN service postgresql start && \
+dpkg -i $PACKAGE_PATH  && \
+service postgresql stop && \
     service supervisor stop && \
     chmod 755 /app/ds/*.sh && \
-    rm -f /tmp/$(basename "$PACKAGE_URL") && \
+    rm -f $PACKAGE_PATH && \
     rm -rf /var/log/$COMPANY_NAME && \
     rm -rf /var/lib/apt/lists/*
 
